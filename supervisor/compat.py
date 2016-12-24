@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
 import sys
+import codecs
+import errno
 
 PY3 = sys.version_info[0] == 3
 
@@ -21,6 +23,20 @@ else: # pragma: no cover
     basestring = basestring
     def as_bytes(s): return s if isinstance(s, str) else s.encode('utf-8')
     def as_string(s): return s if isinstance(s, unicode) else s.decode('utf-8')
+
+def open_file(filename, mode='r', encoding='utf-8'):
+    try:
+        return codecs.open(filename, mode, encoding)
+    except OSError as e:
+        if mode == 'a' and e.errno == errno.ESPIPE:
+            # Python 3 can't open special files like
+            # /dev/stdout in 'a' mode due to an implicit seek call
+            # that fails with ESPIPE. Retry in 'w' mode.
+            # See: http://bugs.python.org/issue27805
+            mode = 'w'
+            return codecs.open(filename, mode, encoding)
+        else:
+            raise
 
 def total_ordering(cls): # pragma: no cover
     """Class decorator that fills in missing ordering methods"""
